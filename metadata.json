@@ -1,7 +1,8 @@
 {
-  "name": "AgroLearn ISTAH_",
+  "name": "AgroLearn ISTAH 2026",
   "description": "Plataforma educativa premium para el aprendizaje de agroecología con visor de documentos avanzado y sistema de citas inteligente.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "microphone"
   ]
 }

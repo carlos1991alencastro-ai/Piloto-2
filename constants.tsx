@@ -2,15 +2,18 @@
 import { Unit } from './types';
 
 export const getDriveDirectUrl = (id: string): string => {
-  // Visor oficial de Google Docs para forzar el embebido y evitar errores de visualización/descarga
   return `https://docs.google.com/viewer?embedded=true&url=https://drive.google.com/uc?id=${id}`;
 };
+
+const DEFAULT_NOTEBOOK = 'https://colab.research.google.com/notebooks/intro.ipynb';
 
 export const UNITS: Unit[] = [
   {
     id: 'unit1',
     title: 'Unidad I. Bases y principios de la agroecología.',
     description: 'Fundamentos ecológicos y sociales de la agroecología moderna.',
+    icon: 'menu_book',
+    summaryNotebookUrl: DEFAULT_NOTEBOOK,
     lessons: [
       { id: '1.1', title: '1.1 Introducción a la Agroecología', driveId: '1QjkNlKIvl1flQCsDYRxBiXGwQD6IKk89' },
       { id: '1.2', title: '1.2 Ecología, Importancia y relación', driveId: '1E-df8olvItlfu9Qbba7DWdS1T29HmH7p' },
@@ -22,6 +25,8 @@ export const UNITS: Unit[] = [
     id: 'unit2',
     title: 'Unidad II. Gestión ambiental: uso y manejo sustentable de recursos para la producción.',
     description: 'Políticas y técnicas de gestión ambiental sustentable.',
+    icon: 'psychology',
+    summaryNotebookUrl: DEFAULT_NOTEBOOK,
     lessons: [
       { id: '2.1', title: '2.1 Influencia de la agricultura', driveId: '1CoFkaubT2wKWJw1nHUX7U2OO6F7zdz82' },
       { id: '2.2', title: '2.2 Política medioambiental', driveId: '1GVouBWicD4zpJZb2YlWLoUb4NmyUxdAM' },
@@ -36,6 +41,8 @@ export const UNITS: Unit[] = [
     id: 'unit3',
     title: 'Unidad III. Técnicas agroecológicas.',
     description: 'Métodos prácticos para el manejo ecológico del campo.',
+    icon: 'construction',
+    summaryNotebookUrl: DEFAULT_NOTEBOOK,
     lessons: [
       { id: '3.1', title: '3.1 Manejo de suelo y labranza', driveId: '1wqrw9fZfnnT-bQthDQP2DU6NEa5uDXyZ' },
       { id: '3.2', title: '3.2 Microorganismos eficientes (EM)', driveId: '1VOKsUbo6Hr1xLqeVQGU350SoC4wPqK1W' },
@@ -47,10 +54,27 @@ export const UNITS: Unit[] = [
     id: 'unit4',
     title: 'Unidad IV. Bioinsumos y manejo agroecológico técnicas agroecológicas.',
     description: 'Producción de insumos biológicos y control natural.',
+    icon: 'biotech',
+    summaryNotebookUrl: DEFAULT_NOTEBOOK,
     lessons: [
       { id: '4.1', title: '4.1 Bioinsecticidas y repelentes', driveId: '1iXrYKtUQNJSKgJCT8pEK1PlVKtCmAXeo' },
       { id: '4.2', title: '4.2 Abonos orgánicos y permacultura', driveId: '1jS4Ql7An-LMDhT7KNLycE6DUbOVq6LdF' },
       { id: '4.3', title: '4.3 Manejo Agroecológico de plagas', driveId: '1wn0AbQqvuC-HjCuOImL-sb_9feAmtAYy' }
+    ]
+  },
+  {
+    id: 'unit-multimedia',
+    title: 'Biblioteca multimedia',
+    description: 'Recursos visuales y videos técnicos sobre agroecología.',
+    icon: 'perm_media',
+    isMultimediaLibrary: true,
+    lessons: [],
+    videos: [
+      { id: 'v1', title: 'Introducción técnica a la agroecología moderna', url: 'https://www.youtube.com/watch?v=6PHeG8n0Pj0' },
+      { id: 'v2', title: 'Manejo ecológico de suelos y fertilidad', url: 'https://www.youtube.com/watch?v=0W9C2u45OPE' },
+      { id: 'v3', title: 'Control biológico de plagas en campo', url: 'https://www.youtube.com/watch?v=Xh7z76Z8eI8' },
+      { id: 'v4', title: 'Sistemas agroforestales y biodiversidad', url: 'https://www.youtube.com/watch?v=q6_y4vI9Bq4' },
+      { id: 'v5', title: 'Abonos orgánicos y bioinsumos líquidos', url: 'https://www.youtube.com/watch?v=Xh7z76Z8eI8' }
     ]
   }
 ];

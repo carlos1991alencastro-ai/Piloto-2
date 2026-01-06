@@ -12,14 +12,15 @@ import { ViewState, Lesson } from './types';
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>('WELCOME');
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
-
-  useEffect(() => {
-    // Basic Fade-in Animation utility classes would be injected here if needed via CSS
-    // but we use Tailwind's animate-fade-in custom class (already configured if standard, otherwise we can use a generic one)
-  }, []);
+  const [selectedUnitId, setSelectedUnitId] = useState<string | undefined>(undefined);
 
   const handleEnter = () => {
     setView('HOME');
+  };
+
+  const handleModuleSelect = (unitId?: string) => {
+    setSelectedUnitId(unitId);
+    setView('MODULES');
   };
 
   const handleLessonSelect = (lesson: Lesson) => {
@@ -30,9 +31,9 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (view) {
       case 'HOME':
-        return <Home onModuleSelect={() => setView('MODULES')} />;
+        return <Home onModuleSelect={handleModuleSelect} />;
       case 'MODULES':
-        return <Modules onLessonSelect={handleLessonSelect} />;
+        return <Modules onLessonSelect={handleLessonSelect} initialUnitId={selectedUnitId} />;
       case 'NOTES':
         return <Notes />;
       case 'PROFILE':
@@ -45,7 +46,7 @@ const App: React.FC = () => {
           />
         ) : null;
       default:
-        return <Home onModuleSelect={() => setView('MODULES')} />;
+        return <Home onModuleSelect={handleModuleSelect} />;
     }
   };
 
@@ -54,7 +55,10 @@ const App: React.FC = () => {
   }
 
   return (
-    <Layout activeView={view} onViewChange={setView}>
+    <Layout activeView={view} onViewChange={(v) => {
+      if (v !== 'MODULES') setSelectedUnitId(undefined);
+      setView(v);
+    }}>
       {renderContent()}
     </Layout>
   );
