@@ -16,7 +16,7 @@ export interface Unit {
   title: string;
   description: string;
   lessons: Lesson[];
-  icon: 'menu_book' | 'psychology' | 'construction' | 'biotech' | 'perm_media'; 
+  icon: 'menu_book' | 'psychology' | 'construction' | 'biotech' | 'perm_media' | 'science'; 
   summaryNotebookUrl?: string;
   isMultimediaLibrary?: boolean;
   videos?: MultimediaVideo[];

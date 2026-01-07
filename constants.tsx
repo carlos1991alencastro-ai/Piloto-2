@@ -76,5 +76,16 @@ export const UNITS: Unit[] = [
       { id: 'v4', title: 'Sistemas agroforestales y biodiversidad', url: 'https://www.youtube.com/watch?v=q6_y4vI9Bq4' },
       { id: 'v5', title: 'Abonos orgánicos y bioinsumos líquidos', url: 'https://www.youtube.com/watch?v=Xh7z76Z8eI8' }
     ]
+  },
+  {
+    id: 'unit-scientific-articles',
+    title: 'Artículos científicos',
+    description: 'Recursos de investigación y bibliografía técnica de referencia.',
+    icon: 'science',
+    lessons: [
+      { id: 'art1', title: 'Núñez M. A. (2000). Manual de técnicas agroecológicas.', driveId: '1QjkNlKIvl1flQCsDYRxBiXGwQD6IKk89' },
+      { id: 'art2', title: 'Paull, J. (2008). Trophobiosis Theory: A Pest Starves on a Healthy Plant.', driveId: '1E-df8olvItlfu9Qbba7DWdS1T29HmH7p' },
+      { id: 'art3', title: 'Porta, J. et al. (2011). Introducción a la edafología, uso y protección del suelo.', driveId: '1RKueIsdRes9CoWN9hRrP9mmwM_SL24Rk' }
+    ]
   }
 ];

@@ -4,11 +4,13 @@ import { CarpetaApunte, MultimediaItem } from '../types';
 
 const Notes: React.FC = () => {
   const [carpetas, setCarpetas] = useState<CarpetaApunte[]>([]);
-  const [carpetasBorradas, setCarpetasBorradas] = useState<CarpetaApunte[]>([]);
   const [activeCarpetaId, setActiveCarpetaId] = useState<string | null>(null);
   const [newCarpetaNombre, setNewCarpetaNombre] = useState('');
   const [activeTab, setActiveTab] = useState<'NOTAS' | 'MULTIMEDIA'>('NOTAS');
   const [selectedMedia, setSelectedMedia] = useState<MultimediaItem | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [folderToDelete, setFolderToDelete] = useState<string | null>(null);
+  const [mediaToDelete, setMediaToDelete] = useState<{ carpetaId: string, itemId: string } | null>(null);
   
   // Estados para grabación de audio
   const [isRecording, setIsRecording] = useState(false);
@@ -20,13 +22,15 @@ const Notes: React.FC = () => {
   useEffect(() => {
     const saved = localStorage.getItem('agro_carpetas_notas');
     if (saved) setCarpetas(JSON.parse(saved));
-    const savedTrash = localStorage.getItem('agro_carpetas_papelera');
-    if (savedTrash) setCarpetasBorradas(JSON.parse(savedTrash));
   }, []);
 
-  const saveToStorage = (updatedCarpetas: CarpetaApunte[], updatedTrash: CarpetaApunte[]) => {
+  const showToast = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const saveToStorage = (updatedCarpetas: CarpetaApunte[]) => {
     localStorage.setItem('agro_carpetas_notas', JSON.stringify(updatedCarpetas));
-    localStorage.setItem('agro_carpetas_papelera', JSON.stringify(updatedTrash));
   };
 
   const formatTime = (seconds: number) => {
@@ -43,11 +47,11 @@ const Notes: React.FC = () => {
       contenido: '',
       fecha: Date.now(),
       multimedia: [],
-      papeleraMultimedia: []
+      papeleraMultimedia: [] 
     };
     const updated = [nueva, ...carpetas];
     setCarpetas(updated);
-    saveToStorage(updated, carpetasBorradas);
+    saveToStorage(updated);
     setNewCarpetaNombre('');
   };
 
@@ -56,7 +60,7 @@ const Notes: React.FC = () => {
       c.id === id ? { ...c, contenido: text, fecha: Date.now() } : c
     );
     setCarpetas(updated);
-    saveToStorage(updated, carpetasBorradas);
+    saveToStorage(updated);
   };
 
   // --- CAPTURA MULTIMEDIA ---
@@ -79,7 +83,7 @@ const Notes: React.FC = () => {
         c.id === activeCarpetaId ? { ...c, multimedia: [newItem, ...c.multimedia] } : c
       );
       setCarpetas(updated);
-      saveToStorage(updated, carpetasBorradas);
+      saveToStorage(updated);
     };
     reader.readAsDataURL(file);
     e.target.value = '';
@@ -112,7 +116,7 @@ const Notes: React.FC = () => {
             c.id === activeCarpetaId ? { ...c, multimedia: [newItem, ...c.multimedia] } : c
           );
           setCarpetas(updated);
-          saveToStorage(updated, carpetasBorradas);
+          saveToStorage(updated);
         };
         reader.readAsDataURL(audioBlob);
         stream.getTracks().forEach(track => track.stop());
@@ -140,84 +144,62 @@ const Notes: React.FC = () => {
     }
   };
 
-  // --- FUNCIONES DE PAPELERA CON GUARDADO INMEDIATO ---
+  // --- COMPARTIR ARCHIVO ---
+  const compartirArchivo = async (item: MultimediaItem) => {
+    try {
+      const response = await fetch(item.url);
+      const blob = await response.blob();
+      const extension = item.type === 'audio' ? 'webm' : item.type === 'photo' ? 'jpg' : 'mp4';
+      const file = new File([blob], `${item.name.replace(/[^a-z0-9]/gi, '_')}.${extension}`, { type: blob.type });
 
-  const moverMultimediaAPapelera = (carpetaId: string, itemId: string) => {
-    const updated = carpetas.map(c => {
-      if (c.id === carpetaId) {
-        const item = c.multimedia.find(m => m.id === itemId);
-        if (item) {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: item.name,
+          text: 'Enviado desde AgroLearn ISTAH'
+        });
+      } else if (navigator.share) {
+        await navigator.share({
+          title: item.name,
+          text: `Mira este registro: ${item.name}`,
+          url: window.location.href
+        });
+      } else {
+        alert('Tu navegador no soporta la función de compartir.');
+      }
+    } catch (err) {
+      console.error('Error al compartir:', err);
+    }
+  };
+
+  // --- LÓGICA DE BORRADO DIRECTO Y DEFINITIVO ---
+
+  const confirmarEliminarMedia = () => {
+    if (mediaToDelete) {
+      const { carpetaId, itemId } = mediaToDelete;
+      const updated = carpetas.map(c => {
+        if (c.id === carpetaId) {
           return {
             ...c,
-            multimedia: c.multimedia.filter(m => m.id !== itemId),
-            papeleraMultimedia: [item, ...c.papeleraMultimedia]
+            multimedia: c.multimedia.filter(m => m.id !== itemId)
           };
         }
-      }
-      return c;
-    });
-    setCarpetas(updated);
-    saveToStorage(updated, carpetasBorradas);
-  };
-
-  const restaurarMultimedia = (carpetaId: string, itemId: string) => {
-    const updated = carpetas.map(c => {
-      if (c.id === carpetaId) {
-        const item = c.papeleraMultimedia.find(m => m.id === itemId);
-        if (item) {
-          return {
-            ...c,
-            papeleraMultimedia: c.papeleraMultimedia.filter(m => m.id !== itemId),
-            multimedia: [item, ...c.multimedia]
-          };
-        }
-      }
-      return c;
-    });
-    setCarpetas(updated);
-    saveToStorage(updated, carpetasBorradas);
-  };
-
-  const eliminarMultimediaPermanente = (carpetaId: string, itemId: string) => {
-    if (confirm('¿Borrar permanentemente este archivo multimedia? Esta acción es irreversible.')) {
-      const updated = carpetas.map(c => 
-        c.id === carpetaId ? { ...c, papeleraMultimedia: c.papeleraMultimedia.filter(m => m.id !== itemId) } : c
-      );
+        return c;
+      });
       setCarpetas(updated);
-      saveToStorage(updated, carpetasBorradas);
+      localStorage.setItem('agro_carpetas_notas', JSON.stringify(updated));
+      showToast('MEMORIA LIBERADA EXITOSAMENTE');
+      setMediaToDelete(null);
     }
   };
 
-  const moverCarpetaAPapelera = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    const carpeta = carpetas.find(c => c.id === id);
-    if (carpeta) {
-      const updated = carpetas.filter(c => c.id !== id);
-      const updatedTrash = [carpeta, ...carpetasBorradas];
+  const confirmarEliminarCarpeta = () => {
+    if (folderToDelete) {
+      const updated = carpetas.filter(c => c.id !== folderToDelete);
       setCarpetas(updated);
-      setCarpetasBorradas(updatedTrash);
-      saveToStorage(updated, updatedTrash);
-    }
-  };
-
-  const restaurarCarpeta = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    const carpeta = carpetasBorradas.find(c => c.id === id);
-    if (carpeta) {
-      const updatedTrash = carpetasBorradas.filter(c => c.id !== id);
-      const updated = [carpeta, ...carpetas];
-      setCarpetas(updated);
-      setCarpetasBorradas(updatedTrash);
-      saveToStorage(updated, updatedTrash);
-    }
-  };
-
-  const eliminarCarpetaPermanente = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    if (confirm('¿Borrar definitivamente esta clase? Se perderán todas las notas y archivos asociados.')) {
-      const updatedTrash = carpetasBorradas.filter(c => c.id !== id);
-      setCarpetasBorradas(updatedTrash);
-      saveToStorage(carpetas, updatedTrash);
+      localStorage.setItem('agro_carpetas_notas', JSON.stringify(updated));
+      showToast('MEMORIA LIBERADA EXITOSAMENTE');
+      setFolderToDelete(null);
     }
   };
 
@@ -225,8 +207,8 @@ const Notes: React.FC = () => {
 
   // --- RENDERIZADO ---
 
-  const renderMultimediaCard = (item: MultimediaItem, isTrash: boolean = false) => (
-    <div key={item.id} className={`bg-white p-4 rounded-32px shadow-card border border-agroGreen/5 flex flex-col gap-3 transition-all ${isTrash ? 'opacity-60 grayscale' : ''}`}>
+  const renderMultimediaCard = (item: MultimediaItem) => (
+    <div key={item.id} className="bg-white p-4 rounded-32px shadow-card border border-agroGreen/5 flex flex-col gap-3 transition-all">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 flex-1 overflow-hidden">
           <div className="w-10 h-10 bg-agroCream rounded-full flex items-center justify-center text-agroGreen shadow-sm shrink-0 border border-agroGreen/10">
@@ -237,14 +219,27 @@ const Notes: React.FC = () => {
             <p className="text-[8px] text-agroMuted font-bold uppercase">{new Date(item.fecha).toLocaleDateString()}</p>
           </div>
         </div>
-        {!isTrash && (
-          <button onClick={() => moverMultimediaAPapelera(activeCarpeta!.id, item.id)} className="p-2 text-red-300 hover:text-red-500 transition-colors shrink-0">
+        <div className="flex items-center gap-1">
+          {/* ICONO COMPARTIR - MANTENIDO INTACTO */}
+          <button 
+            onClick={() => compartirArchivo(item)} 
+            className="p-2 text-agroGreen/60 hover:text-agroGreen transition-colors shrink-0"
+            title="Compartir"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+          </button>
+          {/* BOTÓN BASURERO - CORREGIDO PARA BORRADO DIRECTO */}
+          <button 
+            onClick={() => setMediaToDelete({ carpetaId: activeCarpeta!.id, itemId: item.id })} 
+            className="p-2 text-red-300 hover:text-red-500 transition-colors shrink-0"
+            title="Borrar permanentemente"
+          >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
           </button>
-        )}
+        </div>
       </div>
 
-      <div className="w-full overflow-hidden rounded-2xl bg-agroCream/30">
+      <div className="w-full overflow-hidden rounded-2xl bg-agroCream/30 relative">
         {item.type === 'audio' && (
           <audio controls src={item.url} className="w-full h-10" />
         )}
@@ -253,26 +248,55 @@ const Notes: React.FC = () => {
             src={item.url} 
             alt={item.name} 
             className="w-full h-32 object-cover cursor-pointer" 
-            onClick={() => !isTrash && setSelectedMedia(item)}
+            onClick={() => setSelectedMedia(item)}
           />
         )}
         {item.type === 'video' && (
           <video controls src={item.url} className="w-full h-40 object-cover" />
         )}
       </div>
-
-      {isTrash && (
-        <div className="flex gap-2 mt-1">
-          <button onClick={() => restaurarMultimedia(activeCarpeta!.id, item.id)} className="flex-1 py-2 bg-agroGreen/10 text-agroGreen text-[9px] font-black rounded-xl uppercase tracking-widest active:scale-95 transition-all">Restaurar</button>
-          <button onClick={() => eliminarMultimediaPermanente(activeCarpeta!.id, item.id)} className="flex-1 py-2 bg-red-50 text-red-500 text-[9px] font-black rounded-xl uppercase tracking-widest active:scale-95 transition-all">Borrar</button>
-        </div>
-      )}
     </div>
   );
 
   if (activeCarpetaId && activeCarpeta) {
     return (
       <div className="p-6 h-full flex flex-col animate-fade-in bg-agroCream">
+        {toast && (
+          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[250] bg-agroDark text-white px-6 py-3 rounded-full text-[11px] font-black uppercase tracking-widest shadow-2xl animate-slide-in">
+            {toast}
+          </div>
+        )}
+        
+        {/* MODAL DE CONFIRMACIÓN ESTILIZADO PARA MULTIMEDIA */}
+        {mediaToDelete && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 animate-fade-in">
+            <div className="absolute inset-0 bg-agroDark/40 backdrop-blur-sm" onClick={() => setMediaToDelete(null)}></div>
+            <div className="bg-white w-full max-w-sm rounded-32px p-8 shadow-2xl relative z-10 animate-slide-in border border-agroGreen/10">
+              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-6 mx-auto">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+              </div>
+              <h3 className="text-xl font-black text-agroDark text-center uppercase leading-tight mb-3">¿ELIMINAR PERMANENTEMENTE?</h3>
+              <p className="text-agroMuted text-center text-sm font-medium leading-relaxed mb-8">
+                Esta acción borrará este archivo multimedia. No se puede deshacer.
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setMediaToDelete(null)}
+                  className="flex-1 py-4 text-[11px] font-black text-agroDark uppercase tracking-widest bg-agroCream rounded-2xl active:scale-95 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={confirmarEliminarMedia}
+                  className="flex-1 py-4 text-[11px] font-black text-white uppercase tracking-widest bg-red-500 rounded-2xl shadow-lg shadow-red-500/20 active:scale-95 transition-all"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <header className="flex items-center justify-between mb-4">
           <button onClick={() => { setActiveCarpetaId(null); setActiveTab('NOTAS'); }} className="flex items-center gap-2 text-agroDark font-black group">
             <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-card group-hover:bg-agroGreen transition-colors group-hover:text-white border border-agroGreen/10">
@@ -318,7 +342,7 @@ const Notes: React.FC = () => {
               <div className="flex flex-col items-center gap-2">
                 <label className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-agroGreen shadow-lg active:scale-95 transition-all cursor-pointer border border-agroGreen/10">
                   <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleCaptureFile(e, 'photo')} />
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2 2V7a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                 </label>
                 <span className="text-[10px] font-black uppercase tracking-widest text-agroDark">Cámara</span>
               </div>
@@ -343,15 +367,6 @@ const Notes: React.FC = () => {
                 )}
               </div>
             </div>
-
-            {activeCarpeta.papeleraMultimedia.length > 0 && (
-              <div className="pt-6 border-t border-agroGreen/10 space-y-4">
-                <h4 className="text-[10px] font-black text-agroMuted uppercase tracking-[0.2em] ml-2">Papelera Multimedia</h4>
-                <div className="grid gap-4">
-                  {activeCarpeta.papeleraMultimedia.map(item => renderMultimediaCard(item, true))}
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -370,7 +385,43 @@ const Notes: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-8 animate-fade-in bg-agroCream min-h-full flex flex-col">
+    <div className="p-6 space-y-8 animate-fade-in bg-agroCream min-h-full flex flex-col pb-32">
+      {toast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[250] bg-agroDark text-white px-6 py-3 rounded-full text-[11px] font-black uppercase tracking-widest shadow-2xl animate-slide-in">
+          {toast}
+        </div>
+      )}
+      
+      {/* MODAL DE CONFIRMACIÓN ESTILIZADO PARA CARPETAS */}
+      {folderToDelete && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 animate-fade-in">
+          <div className="absolute inset-0 bg-agroDark/40 backdrop-blur-sm" onClick={() => setFolderToDelete(null)}></div>
+          <div className="bg-white w-full max-w-sm rounded-32px p-8 shadow-2xl relative z-10 animate-slide-in border border-agroGreen/10">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-6 mx-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </div>
+            <h3 className="text-xl font-black text-agroDark text-center uppercase leading-tight mb-3">¿ELIMINAR PERMANENTEMENTE?</h3>
+            <p className="text-agroMuted text-center text-sm font-medium leading-relaxed mb-8">
+              Esta acción borrará todas las notas y archivos multimedia de esta clase. No se puede deshacer.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setFolderToDelete(null)}
+                className="flex-1 py-4 text-[11px] font-black text-agroDark uppercase tracking-widest bg-agroCream rounded-2xl active:scale-95 transition-all"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={confirmarEliminarCarpeta}
+                className="flex-1 py-4 text-[11px] font-black text-white uppercase tracking-widest bg-red-500 rounded-2xl shadow-lg shadow-red-500/20 active:scale-95 transition-all"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="flex justify-between items-start">
         <div>
           <h2 className="text-3xl font-black text-agroDark tracking-tight leading-tight uppercase">Mis Apuntes</h2>
@@ -411,36 +462,16 @@ const Notes: React.FC = () => {
                 <p className="text-[10px] text-agroGreen font-black uppercase tracking-widest mt-1">{carpeta.multimedia.length} REGISTROS</p>
               </div>
             </div>
-            <button onClick={(e) => moverCarpetaAPapelera(e, carpeta.id)} className="p-3 text-red-200 hover:text-red-500 transition-colors shrink-0">
+            <button 
+              onClick={(e) => { e.stopPropagation(); setFolderToDelete(carpeta.id); }} 
+              className="p-3 text-red-200 hover:text-red-500 transition-colors shrink-0"
+              title="Borrar clase permanentemente"
+            >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
             </button>
           </div>
         ))}
       </div>
-
-      {carpetasBorradas.length > 0 && (
-        <div className="pt-8 pb-32 space-y-4">
-          <h4 className="text-[10px] font-black text-agroMuted uppercase tracking-widest px-2">Historial de Papelera</h4>
-          <div className="grid gap-3">
-            {carpetasBorradas.map(carpeta => (
-              <div key={carpeta.id} className="bg-white/40 p-5 rounded-32px border border-dashed border-agroMuted/20 flex items-center justify-between opacity-70">
-                <div className="overflow-hidden pr-2 flex-1">
-                  <span className="font-black text-agroDark uppercase text-[11px] block whitespace-normal break-words leading-tight">{carpeta.nombre}</span>
-                  <span className="text-[8px] text-agroMuted font-bold uppercase block mt-0.5">Pendiente de borrado</span>
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  <button onClick={(e) => restaurarCarpeta(e, carpeta.id)} className="w-10 h-10 text-agroGreen bg-white rounded-2xl shadow-sm border border-agroGreen/5 active:scale-90 transition-all flex items-center justify-center">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                  </button>
-                  <button onClick={(e) => eliminarCarpetaPermanente(e, carpeta.id)} className="w-10 h-10 text-red-500 bg-white rounded-2xl shadow-sm border border-red-50 active:scale-90 transition-all flex items-center justify-center">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

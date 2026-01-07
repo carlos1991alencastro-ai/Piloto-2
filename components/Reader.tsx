@@ -92,7 +92,7 @@ const Reader: React.FC<ReaderProps> = ({ lesson, onClose }) => {
 
       {/* Área del Documento - Optimización de Scroll y GPU */}
       <div 
-        className="flex-1 bg-white relative overflow-hidden" 
+        className="flex-1 bg-white relative overflow-hidden selection-enabled" 
         style={{ 
           touchAction: 'auto',
           WebkitOverflowScrolling: 'touch', // Scroll inercial nativo
@@ -136,6 +136,10 @@ const Reader: React.FC<ReaderProps> = ({ lesson, onClose }) => {
           scrollbar-width: none;
         }
         .selection-enabled {
+          user-select: text !important;
+          -webkit-user-select: text !important;
+        }
+        iframe.selection-enabled {
           user-select: text !important;
           -webkit-user-select: text !important;
         }
